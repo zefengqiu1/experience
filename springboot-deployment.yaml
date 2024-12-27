@@ -1,0 +1,48 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: springboot-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: springboot-app
+  template:
+    metadata:
+      labels:
+        app: springboot-app
+      annotations:
+        prometheus.io/scrape: "true"          # Tells Prometheus to scrape metrics
+        prometheus.io/port: "8080"            # Port where Spring Boot app exposes Prometheus metrics
+        prometheus.io/path: "/actuator/prometheus"  # Path for the Prometheus metrics endpoint
+    spec:
+      containers:
+        - name: springboot-app
+          image: zefengqiu/expmanagement:myapp3
+          ports:
+            - containerPort: 8080
+          env:
+            - name: SPRING_DATA_MONGODB_URI
+              value: "mongodb://mongodb-service:27017/testdb"
+            - name: SPRING_RABBITMQ_HOST
+              value: "rabbitmq-service"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: springboot-service
+spec:
+  selector:
+    app: springboot-app
+  ports:
+    - name: http-port
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+      nodePort: 30000
+    - name: jmx-port
+      protocol: TCP
+      port: 1099  # Expose JMX port
+      targetPort: 1099
+      nodePort: 30001  # Set a nodePort for the JMX port (accessible externally)
+  type: NodePort

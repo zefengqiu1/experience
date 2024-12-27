@@ -1,0 +1,63 @@
+# 1. ConfigMap: 存储 MongoDB 配置
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: mongodb-config
+data:
+  mongod.conf: |
+    storage:
+      dbPath: /data/db
+      journal:
+        enabled: true
+    systemLog:
+      destination: file
+      path: /var/log/mongodb/mongod.log
+      logAppend: true
+    net:
+      port: 27017
+      bindIp: 0.0.0.0
+    replication:
+      replSetName: rs0
+    security:
+      authorization: enabled
+---
+# 2. Deployment: 部署 MongoDB 容器
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:latest
+          ports:
+            - containerPort: 27017
+          volumeMounts:
+            - name: config-volume
+              mountPath: /etc/mongo
+              subPath: mongod.conf  # 只挂载 mongod.conf 配置文件
+      volumes:
+        - name: config-volume
+          configMap:
+            name: mongodb-config  # 引用上面的 ConfigMap
+---
+# 3. Service: 创建访问 MongoDB 的服务
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb-service
+spec:
+  ports:
+    - port: 27017
+      targetPort: 27017
+  selector:
+    app: mongodb
